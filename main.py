@@ -3,6 +3,7 @@ import json
 import random
 from keras import models
 import numpy as np 
+from scipy import ndimage
 from fastapi import FastAPI, Form
 
 app = FastAPI()
@@ -25,27 +26,67 @@ def generate_random_sample(dataset, num_of_samples):
     sample_indices = np.random.choice(dataset.shape[0], num_of_samples, replace=False)
     return dataset[sample_indices, :, :].reshape(-1, dataset.shape[1]*dataset.shape[1])
 
+def corrective_algorithm_for_dungeon(predicted_dataset):
+  # Label the connected regions of 1's
+  labels, num_labels = ndimage.label(predicted_dataset)
+  # Count the number of pixels in each connected region
+  counts = np.bincount(labels.ravel())
+  # Find the label of the largest connected region
+  largest_label = np.argmax(counts[1:]) + 1
+
+  # Create a new array where all pixels outside the largest connected region are set to 0,
+  # and all pixels inside the largest connected region are set to 1
+
+  corrected_dataset = np.zeros_like(predicted_dataset)
+  corrected_dataset[labels == largest_label] = 1
+
+  # If the largest connected region does not have at least 10 pixels, grow it by one pixel in all directions until it does
+  grown_dataset = corrected_dataset.copy()
+  while np.sum(grown_dataset) < 10:
+    grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
+    grown_dataset = np.vstack((grown_dataset[1:,:], np.zeros_like(grown_dataset[0,:])))
+    grown_dataset = np.hstack((np.zeros_like(grown_dataset[:,0]).reshape(-1,1), grown_dataset[:,:-1]))
+    grown_dataset = np.hstack((grown_dataset[:,1:], np.zeros_like(grown_dataset[:,0]).reshape(-1,1)))
+
+  # Check if the largest connected region is already touching the edge of the image
+  if (grown_dataset[0,:] == 1).any() or (grown_dataset[-1,:] == 1).any() or (grown_dataset[:,0] == 1).any() or (grown_dataset[:,-1] == 1).any():
+    return grown_dataset
+
+  # If the largest connected region is not touching the edge of the image, grow it by one pixel in all directions until it does
+  grown_dataset = grown_dataset.copy()
+  while (grown_dataset[0,:] == 0).all():
+    grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
+  while (grown_dataset[-1,:] == 0).all():
+    grown_dataset = np.vstack((grown_dataset[1:,:], np.zeros_like(grown_dataset[0,:])))
+  while (grown_dataset[:,0] == 0).all():
+    grown_dataset = np.hstack((np.zeros_like(grown_dataset[:,0]).reshape(-1,1), grown_dataset[:,:-1]))
+  while (grown_dataset[:,-1] == 0).all():
+    grown_dataset = np.hstack((grown_dataset[:,1:], np.zeros_like(grown_dataset[:,0]).reshape(-1,1)))
+
+  return grown_dataset
+
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 
 @app.post("/generate_dungeons")
-async def generate_dungeons(num_of_samples: int = Form(...), mode_of_generation: int = Form(...)):
+async def generate_dungeons(num_of_samples: int = Form(...), use_corrective_algorithm: int = Form(...)):
     # Generate a sample dataset to pass to the model
-    # 0 = Generate sample with random values
-    # 1 = Select random levels from the dungeon dataset 
-    sample_arr = np.random.randint(low=0, high=2, size=(num_of_samples, 64)) if mode_of_generation == 0 \
-        else  generate_random_sample(dungeon_data,num_of_samples)
+    sample_arr = np.random.randint(low=0, high=2, size=(num_of_samples, 64))
     
     #Pass sample to the model
     predictions = dungeon_autoencoder.predict(sample_arr)
 
     # Round the predictions to get integer values of 0 or 1
-    predictions = np.round(predictions.reshape(-1,8,8)).astype(int).tolist()
+    predictions = np.round(predictions.reshape(-1,8,8)).astype(int)
+
+    if use_corrective_algorithm == 1:
+        # Pass through corrective algorithm
+        predictions = corrective_algorithm_for_dungeon(predictions)
 
     # convert list to JSON string and send as response
-    return {"data" : json.dumps(predictions)}
+    return {"data" : json.dumps(predictions.tolist())}
 
 @app.post("/generate_rooms")
 async def generate_rooms(num_of_samples: int = Form(...), mode_of_generation: int = Form(...)):
