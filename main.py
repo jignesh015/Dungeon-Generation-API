@@ -45,10 +45,11 @@ def corrective_algorithm_for_dungeon(predicted_dataset):
     corrected_dataset[labels == largest_label] = 1
 
     try:
-        # If the largest connected region does not have at least 10 pixels, 
+        min_dungeon_len = 15
+        # If the largest connected region does not have at least 'min_dungeon_len' pixels, 
         # grow it by one pixel in all directions until it does
         grown_dataset = corrected_dataset.copy()
-        while np.sum(grown_dataset) < 10:
+        while np.sum(grown_dataset) < min_dungeon_len:
             grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
             grown_dataset = np.vstack((grown_dataset[1:,:], np.zeros_like(grown_dataset[0,:])))
             grown_dataset = np.hstack((np.zeros_like(grown_dataset[:,0]).reshape(-1,1), grown_dataset[:,:-1]))
@@ -60,7 +61,6 @@ def corrective_algorithm_for_dungeon(predicted_dataset):
 
         # If the largest connected region is not touching the edge of the image, 
         # grow it by one pixel in all directions until it does
-        grown_dataset = grown_dataset.copy()
         while (grown_dataset[0,:] == 0).all():
             grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
         while (grown_dataset[-1,:] == 0).all():
@@ -70,8 +70,9 @@ def corrective_algorithm_for_dungeon(predicted_dataset):
         while (grown_dataset[:,-1] == 0).all():
             grown_dataset = np.hstack((grown_dataset[:,1:], np.zeros_like(grown_dataset[:,0]).reshape(-1,1)))
     except ValueError: 
-        print("Encountered some issue!")
-        return corrected_dataset
+        print("---------------Encountered some issue!---------------")
+        return np.zeros((1, 1, 1)).astype(int)
+        
     return grown_dataset
 
 # This function takes the room dataset of shape (n,16,16)
@@ -111,6 +112,21 @@ def corrective_algorithm_for_rooms(predicted_dataset):
                 _replacementValue = 1
             
             gridValues[i][j] = cellValue if _sanityCondition else _replacementValue
+    
+    #Make sure there are at least two doors in the room
+    min_door_count = 2
+    edge_indices = [(0, j) for j in range(size)] + [(i, 0) for i in range(1, size-1)] + \
+      [(size-1, j) for j in range(1, size-1)] + [(i, size-1) for i in range(1, size-1)]
+    door_count = 0
+    for i, j in edge_indices:
+        if gridValues[i][j] == 7:
+            door_count += 1
+    if door_count < min_door_count:
+        missing_door_count = min_door_count - door_count
+        random_edge_indices = np.random.choice(len(edge_indices), size=missing_door_count, replace=False)
+        for idx in random_edge_indices:
+          i, j = edge_indices[idx]
+          gridValues[i][j] = 7
     
     # Put a hard limit on other objects
     objectsMaxAllowed = {2:6, 3:12, 4:4, 5:6, 6:6, 8:10}
