@@ -33,42 +33,46 @@ def generate_random_sample(dataset, num_of_samples):
 # performs a corrective algo on it
 # and returns the output as an array of same shape
 def corrective_algorithm_for_dungeon(predicted_dataset):
-  # Label the connected regions of 1's
-  labels, num_labels = ndimage.label(predicted_dataset)
-  # Count the number of pixels in each connected region
-  counts = np.bincount(labels.ravel())
-  # Find the label of the largest connected region
-  largest_label = np.argmax(counts[1:]) + 1
-  # Create a new array where all pixels outside the largest connected region are set to 0,
-  # and all pixels inside the largest connected region are set to 1
-  corrected_dataset = np.zeros_like(predicted_dataset)
-  corrected_dataset[labels == largest_label] = 1
-  # If the largest connected region does not have at least 10 pixels, 
-  # grow it by one pixel in all directions until it does
-  grown_dataset = corrected_dataset.copy()
-  while np.sum(grown_dataset) < 10:
-    grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
-    grown_dataset = np.vstack((grown_dataset[1:,:], np.zeros_like(grown_dataset[0,:])))
-    grown_dataset = np.hstack((np.zeros_like(grown_dataset[:,0]).reshape(-1,1), grown_dataset[:,:-1]))
-    grown_dataset = np.hstack((grown_dataset[:,1:], np.zeros_like(grown_dataset[:,0]).reshape(-1,1)))
+    # Label the connected regions of 1's
+    labels, num_labels = ndimage.label(predicted_dataset)
+    # Count the number of pixels in each connected region
+    counts = np.bincount(labels.ravel())
+    # Find the label of the largest connected region
+    largest_label = np.argmax(counts[1:]) + 1
+    # Create a new array where all pixels outside the largest connected region are set to 0,
+    # and all pixels inside the largest connected region are set to 1
+    corrected_dataset = np.zeros_like(predicted_dataset)
+    corrected_dataset[labels == largest_label] = 1
 
-  # Check if the largest connected region is already touching the edge of the image
-  if (grown_dataset[0,:] == 1).any() or (grown_dataset[-1,:] == 1).any() or (grown_dataset[:,0] == 1).any() or (grown_dataset[:,-1] == 1).any():
+    try:
+        # If the largest connected region does not have at least 10 pixels, 
+        # grow it by one pixel in all directions until it does
+        grown_dataset = corrected_dataset.copy()
+        while np.sum(grown_dataset) < 10:
+            grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
+            grown_dataset = np.vstack((grown_dataset[1:,:], np.zeros_like(grown_dataset[0,:])))
+            grown_dataset = np.hstack((np.zeros_like(grown_dataset[:,0]).reshape(-1,1), grown_dataset[:,:-1]))
+            grown_dataset = np.hstack((grown_dataset[:,1:], np.zeros_like(grown_dataset[:,0]).reshape(-1,1)))
+
+        # Check if the largest connected region is already touching the edge of the image
+        if (grown_dataset[0,:] == 1).any() or (grown_dataset[-1,:] == 1).any() or (grown_dataset[:,0] == 1).any() or (grown_dataset[:,-1] == 1).any():
+            return grown_dataset
+
+        # If the largest connected region is not touching the edge of the image, 
+        # grow it by one pixel in all directions until it does
+        grown_dataset = grown_dataset.copy()
+        while (grown_dataset[0,:] == 0).all():
+            grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
+        while (grown_dataset[-1,:] == 0).all():
+            grown_dataset = np.vstack((grown_dataset[1:,:], np.zeros_like(grown_dataset[0,:])))
+        while (grown_dataset[:,0] == 0).all():
+            grown_dataset = np.hstack((np.zeros_like(grown_dataset[:,0]).reshape(-1,1), grown_dataset[:,:-1]))
+        while (grown_dataset[:,-1] == 0).all():
+            grown_dataset = np.hstack((grown_dataset[:,1:], np.zeros_like(grown_dataset[:,0]).reshape(-1,1)))
+    except ValueError: 
+        print("Encountered some issue!")
+        return corrected_dataset
     return grown_dataset
-
-  # If the largest connected region is not touching the edge of the image, 
-  # grow it by one pixel in all directions until it does
-  grown_dataset = grown_dataset.copy()
-  while (grown_dataset[0,:] == 0).all():
-    grown_dataset = np.vstack((np.zeros_like(grown_dataset[0,:]), grown_dataset[:-1,:]))
-  while (grown_dataset[-1,:] == 0).all():
-    grown_dataset = np.vstack((grown_dataset[1:,:], np.zeros_like(grown_dataset[0,:])))
-  while (grown_dataset[:,0] == 0).all():
-    grown_dataset = np.hstack((np.zeros_like(grown_dataset[:,0]).reshape(-1,1), grown_dataset[:,:-1]))
-  while (grown_dataset[:,-1] == 0).all():
-    grown_dataset = np.hstack((grown_dataset[:,1:], np.zeros_like(grown_dataset[:,0]).reshape(-1,1)))
-
-  return grown_dataset
 
 # This function takes the room dataset of shape (n,16,16)
 # performs a corrective algo on it
