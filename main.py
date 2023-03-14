@@ -7,6 +7,7 @@ from scipy import ndimage
 from fastapi import FastAPI, Form
 import helper
 import generate
+import tensorflow as tf
 
 app = FastAPI()
 
@@ -19,10 +20,12 @@ dungeon_data[np.logical_and(dungeon_data != 0, dungeon_data != 1)] = 1
 
 # Load the dungeon models
 dungeon_dcgan = models.load_model('models\dungeon_dcgan.h5', compile=False)
+dungeon_vae_model = models.load_model('models\dungeon_vae_model.h5', compile=False)
 dungeon_autoencoder = models.load_model('models\dungeon_autoencoder.h5')
 
 # Load the room models
 rooms_dcgan =  models.load_model('models\\rooms_dcgan.h5', compile=False)
+rooms_vae_model =  models.load_model('models\\rooms_vae_model.h5', compile=False)
 rooms_cnn =  models.load_model('models\\rooms_cnn_model.h5')
 
 @app.get("/")
