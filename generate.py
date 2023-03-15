@@ -23,7 +23,7 @@ def generate_dungeon(num_of_samples, model_choice):
         # Generate a sample dataset to pass to the model
         sample_arr = np.random.randint(low=0, high=2, size=(num_of_samples, 64))
         #Pass sample to the model
-        predictions = main.dungeon_autoencoder.predict(sample_arr)
+        predictions = main.dungeon_vae_model.predict(sample_arr)
         #Process the generated output
         # predictions = predictions.reshape(predictions.shape[0],8,8)
         # predictions =  np.round(predictions)

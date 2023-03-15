@@ -114,7 +114,7 @@ def corrective_algorithm_for_rooms(predicted_dataset):
           gridValues[i][j] = 7
     
     # Put a hard limit on other objects
-    objectsMaxAllowed = {2:6, 3:12, 4:4, 5:6, 6:6, 8:10}
+    objectsMaxAllowed = {2:12, 3:12, 4:4, 5:6, 6:6, 8:12}
     
     for keyVal in objectsMaxAllowed.items():
         targetValue = keyVal[0]
